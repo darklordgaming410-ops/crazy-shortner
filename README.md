@@ -1,4 +1,4 @@
-# TeleShort — Production-Hardened Web Short-Link Platform
+# CrazyShort — Production-Hardened Web Short-Link Platform
 
 Cloudflare Pages Functions + D1 web short-link platform with user accounts, configurable multi-step website visits, rewards, referrals, withdrawals, developer API, responsive banner ads, and anti-bot controls.
 

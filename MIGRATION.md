@@ -1,4 +1,4 @@
-# TeleShort production migration
+# CrazyShort production migration
 
 ## New deployment
 1. Create a fresh Cloudflare D1 database.

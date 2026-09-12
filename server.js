@@ -169,7 +169,7 @@ app.use(express.static(__dirname));
 
 // Start server
 const server = app.listen(PORT, HOST, () => {
-  console.log(`TeleShort server running on http://${HOST}:${PORT}`);
+  console.log(`CrazyShort server running on http://${HOST}:${PORT}`);
 });
 
 process.on('SIGTERM', () => {

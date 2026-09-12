@@ -1,4 +1,4 @@
-# TeleShort production deployment
+# CrazyShort production deployment
 
 ## 1. Create Cloudflare D1
 1. Cloudflare Dashboard -> Workers & Pages -> D1 -> Create database.

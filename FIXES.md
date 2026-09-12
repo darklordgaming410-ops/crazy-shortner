@@ -1,4 +1,4 @@
-# TeleShort repair notes
+# CrazyShort repair notes
 
 This build keeps the admin panel login as **password-only**.
 
