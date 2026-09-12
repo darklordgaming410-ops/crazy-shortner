@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
--- TeleShort Web Edition: Cloudflare D1 schema.
+-- CrazyShort Web Edition: Cloudflare D1 schema.
 -- Monetary values use integer micros: $1.00 = 1,000,000.
 
 CREATE TABLE IF NOT EXISTS users (

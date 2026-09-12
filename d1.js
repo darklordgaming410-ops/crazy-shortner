@@ -44,7 +44,7 @@ function createPreparedStatement(db, sql, initialArgs = []) {
 }
 
 export function createD1(dbFilePath) {
-  const resolvedPath = dbFilePath || path.join(process.cwd(), 'teleshort.db');
+  const resolvedPath = dbFilePath || path.join(process.cwd(), 'crazyshort.db');
   const db = new DatabaseSync(resolvedPath);
 
   db.exec('PRAGMA foreign_keys = ON;');

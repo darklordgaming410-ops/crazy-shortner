@@ -31,7 +31,7 @@ Cloudflare Pages Functions + D1 web short-link platform with user accounts, conf
 - `TURNSTILE_SITE_KEY` — Cloudflare Turnstile public site key.
 
 Compatibility fallback only:
-- `ADMIN_PASSWORD` — plain admin password. The admin UI still asks for password only; this variable is accepted server-side for older deployments. Prefer `ADMIN_PASSWORD_HASH` in production.
+- `ADMIN_PASSWORD_HASH` — the only supported admin credential; plaintext/default admin passwords are not supported.
 
 ### Cloudflare D1 binding
 

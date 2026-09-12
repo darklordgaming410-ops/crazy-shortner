@@ -26,21 +26,28 @@ const HOST = '0.0.0.0';
 app.set('trust proxy', 1);
 
 // Parse raw request body for standard Web Request consumption
-app.use(express.raw({ type: '*/*', limit: '10mb' }));
+app.use(express.raw({ type: '*/*', limit: '256kb' }));
 
 // Initialize D1 SQLite database
-const dbPath = path.join(process.cwd(), 'teleshort.db');
+const dbPath = path.join(process.cwd(), process.env.DB_FILE || 'crazyshort.db');
 const d1 = createD1(dbPath);
 
 // Environment object matching Cloudflare Pages Functions expectations
 const env = {
   DB: d1,
-  APP_ENCRYPTION_KEY: process.env.APP_ENCRYPTION_KEY || 'teleshort-dev-encryption-key-32b',
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin12345',
+  APP_ENCRYPTION_KEY: process.env.APP_ENCRYPTION_KEY || '',
   ADMIN_PASSWORD_HASH: process.env.ADMIN_PASSWORD_HASH || '',
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
   TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY || '',
 };
+
+function sameOriginRequest(req, origin) {
+  try {
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+    const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+    return new URL(origin).origin === `${proto}://${host}`;
+  } catch { return false; }
+}
 
 // Dispatcher that adapts an Express req/res to a Cloudflare Pages Function handler
 async function dispatch(mod, req, res, params = {}) {
@@ -58,8 +65,10 @@ async function dispatch(mod, req, res, params = {}) {
 
     if (!handler) {
       if (method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Headers', '*');
+        const origin = req.get('origin');
+        if (origin && sameOriginRequest(req, origin)) res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+        res.setHeader('Access-Control-Allow-Headers', 'Authorization, X-API-Key, X-CSRF-Token, Content-Type');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
         return res.status(204).end();
       }
@@ -136,12 +145,29 @@ async function dispatch(mod, req, res, params = {}) {
   }
 }
 
-// Security headers middleware (framed for AI Studio preview compatibility)
+// Defense-in-depth security headers for the local/Node adapter.
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Origin-Agent-Cluster', '?1');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data:; object-src 'none'; frame-src https://challenges.cloudflare.com https:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests");
+  if (process.env.NODE_ENV === 'production') res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
+
+// Production startup must never silently fall back to known credentials/secrets.
+if (process.env.NODE_ENV === 'production') {
+  const required = ['APP_ENCRYPTION_KEY', 'ADMIN_PASSWORD_HASH'];
+  const missing = required.filter(k => !String(process.env[k] || '').trim());
+  if (missing.length) {
+    console.error(`Missing required production secrets: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
 
 // API Routes
 app.all('/api/auth', (req, res) => dispatch(authHandler, req, res));

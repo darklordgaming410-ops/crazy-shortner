@@ -2,7 +2,7 @@
 
 ## 1. Create Cloudflare D1
 1. Cloudflare Dashboard -> Workers & Pages -> D1 -> Create database.
-2. Name it, for example `teleshort-db`.
+2. Name it, for example `crazyshort-db`.
 3. Open the database -> Console.
 4. Run the complete `schema.sql` from this project.
 5. Confirm the tables include `users`, `links`, `visit_sessions`, `visit_attempts`, `visit_pow_challenges`, `visit_rewards`, `earnings_ledger`, `withdrawals`, `rate_limits`, and `security_events`.
@@ -16,7 +16,7 @@
 ## 3. Bind D1 to Pages Functions
 Project -> Settings -> Functions -> D1 database bindings.
 - Variable/binding name: `DB`
-- Database: your `teleshort-db`
+- Database: your `crazyshort-db`
 
 The code expects `env.DB`.
 
@@ -95,7 +95,7 @@ Do not put API keys, admin passwords, or secrets into query strings.
 - HTTPS/custom domain enabled.
 - D1 binding name exactly `DB`.
 - Turnstile site + secret configured.
-- `ADMIN_PASSWORD_HASH` configured; do not rely on `ADMIN_PASSWORD` fallback.
+- `ADMIN_PASSWORD_HASH` configured; there is no plaintext/default admin-password fallback.
 - `APP_ENCRYPTION_KEY` configured.
 - All production secrets are unique and randomly generated.
 - Cloudflare WAF/rate limiting enabled.

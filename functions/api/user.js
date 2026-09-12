@@ -1,6 +1,6 @@
 import { sha256Hex, json, getCookie, getClientIp, randomHex, sameOrigin, rateLimit, rateHeaders } from '../../verifyAuth.js';
 
-const COOKIE='teleshort_user_session';
+const COOKIE='crazyshort_user_session';
 const MICRO=1_000_000;
 
 function safeUrl(value){try{const u=new URL(String(value||'').trim());if(!['http:','https:'].includes(u.protocol)||u.username||u.password)return null;return u.href;}catch{return null;}}

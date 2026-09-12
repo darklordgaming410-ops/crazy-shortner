@@ -1,6 +1,6 @@
 import { sha256Hex, json, getCookie, sameOrigin } from '../../verifyAuth.js';
 
-const COOKIE='teleshort_admin_session';
+const COOKIE='crazyshort_admin_session';
 async function session(request,env){const token=getCookie(request,COOKIE);if(!token)return null;const h=await sha256Hex(token);return env.DB.prepare("SELECT * FROM admin_sessions WHERE token_hash=? AND revoked_at IS NULL AND expires_at>datetime('now')").bind(h).first();}
 async function audit(env,action,type='',id='',metadata={}){await env.DB.prepare('INSERT INTO admin_audit_logs(id,action,target_type,target_id,metadata) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),action,type,id,JSON.stringify(metadata)).run();}
 function urlOk(v){try{const u=new URL(String(v||'').trim());return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password?u.href:null;}catch{return null;}}

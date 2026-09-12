@@ -1,6 +1,6 @@
 import { sha256Hex, json, getCookie, getClientIp, randomHex, sameOrigin, rateLimit, rateHeaders } from '../../verifyAuth.js';
 
-const COOKIE='teleshort_user_session';
+const COOKIE='crazyshort_user_session';
 const MICRO=1_000_000;
 
 async function getUser(request,env){const token=getCookie(request,COOKIE);if(!token)return null;const hash=await sha256Hex(token);const u=await env.DB.prepare(`SELECT s.id session_id,s.csrf_token,u.* FROM user_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>datetime('now') LIMIT 1`).bind(hash).first();if(!u||u.is_blocked)return null;await env.DB.prepare('UPDATE user_sessions SET last_seen_at=CURRENT_TIMESTAMP WHERE id=?').bind(u.session_id).run();return u;}

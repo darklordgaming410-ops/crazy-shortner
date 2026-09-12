@@ -1,4 +1,4 @@
-/* Production security headers. Keep CSP aligned with the current Tailwind CDN + inline UI. */
+/* Production security headers. Keep CSP aligned with the current Tailwind CDN + inline UI; migrate inline scripts to external files before removing unsafe-inline. */
 /* If a third-party script/domain is added later, update CSP deliberately. */
   X-Content-Type-Options: nosniff
   X-Permitted-Cross-Domain-Policies: none

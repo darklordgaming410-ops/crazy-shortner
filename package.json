@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "build": "echo 'Build complete'"
+    "build": "echo 'Build complete'",
+    "hash-admin-password": "node scripts/hash-admin-password.js"
   },
   "dependencies": {
     "express": "^4.21.2"

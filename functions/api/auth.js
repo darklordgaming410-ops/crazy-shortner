@@ -1,6 +1,6 @@
 import { sha256Hex, json, getCookie, getClientIp, randomHex, cookie, clearCookie, passwordHash, verifyPassword, sameOrigin, rateLimit, rateHeaders } from '../../verifyAuth.js';
 
-const COOKIE = 'teleshort_user_session';
+const COOKIE = 'crazyshort_user_session';
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
 const MICRO = 1_000_000;
 
