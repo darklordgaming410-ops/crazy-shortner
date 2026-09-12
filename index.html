@@ -1,20 +1,2051 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TeleShort</title><script src="https://cdn.tailwindcss.com"></script><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script><style>body{font-family:Inter,system-ui;background:#0f172a;color:#f8fafc;overflow-x:hidden}.ad-slot{display:flex;justify-content:center;align-items:center;overflow:hidden;min-height:0}.ad-slot:empty{display:none}.ad-header{max-width:1200px;margin:0 auto}.ad-sidebar{width:100%;min-height:90px}.ad-bottom{max-width:1200px;margin:0 auto}.glass{background:rgba(30,41,59,.82);border:1px solid rgba(255,255,255,.07);border-radius:1rem}.tab{cursor:pointer}</style></head>
-<body class="min-h-screen"><div id="ad-header" class="ad-slot ad-header w-full px-3 py-2"></div>
-<div id="auth" class="min-h-screen flex items-center justify-center p-4"><div class="glass p-7 w-full max-w-md"><div class="text-3xl mb-2">⚡</div><h1 class="text-3xl font-bold">TeleShort</h1><p class="text-slate-400 mt-1 mb-6">Web short-link platform</p><div class="flex gap-2 mb-5"><button id="loginTab" onclick="authMode('login')" class="flex-1 bg-indigo-600 rounded-xl p-3 font-bold">Login</button><button id="registerTab" onclick="authMode('register')" class="flex-1 bg-slate-800 rounded-xl p-3">Register</button></div><form id="authForm" onsubmit="submitAuth(event)" class="space-y-3"><input id="email" type="email" required placeholder="Email" class="w-full bg-slate-950 p-3 rounded-xl"><input id="password" type="password" required minlength="8" placeholder="Password (8+ characters)" class="w-full bg-slate-950 p-3 rounded-xl"><div id="registerFields" class="hidden grid grid-cols-2 gap-3"><input id="first" placeholder="First name" class="bg-slate-950 p-3 rounded-xl"><input id="last" placeholder="Last name" class="bg-slate-950 p-3 rounded-xl"><input id="username" placeholder="Username" class="col-span-2 bg-slate-950 p-3 rounded-xl"><div id="turnstileWrap" class="col-span-2 hidden"><div id="turnstileWidget"></div></div></div><button id="authBtn" class="w-full bg-indigo-600 rounded-xl p-3 font-bold">Login</button><p id="authError" class="text-red-400 text-sm"></p></form></div></div>
-<div id="dash" class="hidden min-h-screen"><header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-10"><div class="max-w-6xl mx-auto p-4 flex items-center justify-between"><div><b class="text-xl text-indigo-400">⚡ TeleShort</b><div id="welcome" class="text-xs text-slate-500"></div></div><button onclick="logout()" class="text-red-400">Logout</button></div></header><main class="max-w-7xl mx-auto p-3 sm:p-4 md:p-8"><div class="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)_180px] gap-4 items-start"><aside id="ad-left" class="ad-slot ad-sidebar hidden lg:flex sticky top-24"></aside><div class="min-w-0"><div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"><div class="glass p-4"><div class="text-xs text-slate-400">Balance</div><div id="balance" class="text-2xl font-bold mt-2">$0</div></div><div class="glass p-4"><div class="text-xs text-slate-400">Total earnings</div><div id="earnings" class="text-2xl font-bold mt-2">$0</div></div><div class="glass p-4"><div class="text-xs text-slate-400">Clicks</div><div id="clicks" class="text-2xl font-bold mt-2">0</div></div><div class="glass p-4"><div class="text-xs text-slate-400">Today</div><div id="today" class="text-2xl font-bold mt-2">$0</div></div></div>
-<div class="grid lg:grid-cols-3 gap-5"><section class="glass p-5 lg:col-span-2"><h2 class="text-xl font-bold mb-4">Create Short Link</h2><div class="flex gap-2"><input id="longUrl" type="url" placeholder="https://example.com" class="flex-1 bg-slate-950 p-3 rounded-xl"><button onclick="createLink()" class="bg-indigo-600 px-5 rounded-xl font-bold">Shorten</button></div><div id="created" class="mt-4"></div><h3 class="font-bold mt-8 mb-3">Your links</h3><div id="links" class="space-y-2"></div></section>
-<section class="space-y-5"><div class="glass p-5"><h2 class="font-bold text-lg mb-3">API Key</h2><p class="text-slate-400 text-sm mb-2">Current key ending: <span id="last4"></span></p><button onclick="rotateKey()" class="bg-slate-800 rounded-xl px-4 py-2">Rotate API key</button><p class="text-xs text-amber-300 mt-3">A new key is shown only once. Update your API clients after rotation.</p></div><div class="glass p-5"><h2 class="font-bold text-lg mb-3">Withdraw</h2><input id="amount" type="number" step="0.000001" placeholder="Amount ($)" class="w-full bg-slate-950 p-3 rounded-xl mb-2"><input id="method" placeholder="Payment method" class="w-full bg-slate-950 p-3 rounded-xl mb-2"><textarea id="details" placeholder="Payout details" class="w-full bg-slate-950 p-3 rounded-xl mb-2"></textarea><button onclick="withdraw()" class="w-full bg-indigo-600 rounded-xl p-3 font-bold">Request withdrawal</button><p id="withdrawMsg" class="text-sm mt-2"></p></div><div class="glass p-5"><h2 class="font-bold text-lg mb-2">Referral</h2><input id="refLink" readonly class="w-full bg-slate-950 p-3 rounded-xl text-xs"><button onclick="navigator.clipboard.writeText(refLink.value)" class="mt-2 bg-slate-800 rounded-xl px-4 py-2">Copy</button></div></section></div><aside id="ad-right" class="ad-slot ad-sidebar hidden lg:flex sticky top-24"></aside></div></main><div id="ad-bottom" class="ad-slot ad-bottom w-full px-3 py-2"></div></div>
-<script>
-let mode='login',me=null,csrfToken='';const ret=new URLSearchParams(location.search).get('return')||'';function authMode(m){mode=m;registerFields.classList.toggle('hidden',m!=='register');if(m==='register')setTimeout(renderTurnstile,250);authBtn.textContent=m==='login'?'Login':'Create account';loginTab.className=m==='login'?'flex-1 bg-indigo-600 rounded-xl p-3 font-bold':'flex-1 bg-slate-800 rounded-xl p-3';registerTab.className=m==='register'?'flex-1 bg-indigo-600 rounded-xl p-3 font-bold':'flex-1 bg-slate-800 rounded-xl p-3'}
-let turnstileToken='';let turnstileWidgetId=null;let turnstileSiteKey='';async function loadSecurityConfig(){try{const r=await fetch('/api/user',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'get_public_config'})});const d=await r.json();turnstileSiteKey=d?.settings?.turnstile_site_key||'';if(turnstileSiteKey&&window.turnstile)renderTurnstile();}catch{}}function renderTurnstile(){if(!turnstileSiteKey||!window.turnstile||turnstileWidgetId!==null)return;window.turnstile.ready(()=>{if(turnstileWidgetId!==null)return;turnstileWidgetId=window.turnstile.render('#turnstileWidget',{sitekey:turnstileSiteKey,theme:'dark',callback:t=>turnstileToken=t,'expired-callback':()=>turnstileToken='','error-callback':()=>turnstileToken=''});turnstileWrap.classList.remove('hidden')})}function resetTurnstile(){turnstileToken='';if(window.turnstile&&turnstileWidgetId!==null)window.turnstile.reset(turnstileWidgetId)}async function submitAuth(e){e.preventDefault();authError.textContent='';authBtn.disabled=true;try{const body={action:mode,email:email.value,password:password.value};if(mode==='register'){if(!turnstileToken)throw Error('Please complete the anti-bot verification.');Object.assign(body,{first_name:first.value,last_name:last.value,username:username.value,ref:new URLSearchParams(location.search).get('ref')||'',turnstile_token:turnstileToken});}const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');csrfToken=d.csrf_token||'';if(ret){location.href=ret;return}showDash(d.user)}catch(e){authError.textContent=e.message}finally{authBtn.disabled=false;if(mode==='register')resetTurnstile()}}
-async function init(){try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'me'})});const d=await r.json();if(r.ok&&d.user){csrfToken=d.csrf_token||'';showDash(d.user)}}catch{}}function showDash(u){me=u;auth.classList.add('hidden');dash.classList.remove('hidden');welcome.textContent=u.email;balance.textContent='$'+Number(u.balance).toFixed(6);earnings.textContent='$'+Number(u.total_earnings).toFixed(6);clicks.textContent=u.total_clicks;today.textContent='$'+Number(u.today_earnings).toFixed(6);last4.textContent='••••••••'+u.api_key_last4;loadAll()}
-async function api(action,payload={}){const h={'Content-Type':'application/json'};if(!['get_public_config','get_me','get_links','get_withdrawals','get_referrals'].includes(action))h['X-CSRF-Token']=csrfToken;const r=await fetch('/api/user',{method:'POST',headers:h,credentials:'same-origin',body:JSON.stringify({action,payload})});const d=await r.json();if(!r.ok||d.error)throw Error(d.error||'Request failed');return d}
-async function loadAll(){try{const [l,c]=await Promise.all([api('get_links'),api('get_referrals')]);links.innerHTML=(l.links||[]).map(x=>`<div class="bg-slate-950 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2"><div class="flex-1"><div class="font-mono text-sm">${esc(x.short_id)}</div><div class="text-xs text-slate-500 truncate">${esc(x.original_url)}</div></div><a class="text-indigo-400 text-sm" href="${esc('/s/'+x.short_id)}" target="_blank">Open</a><div class="text-xs">${x.clicks} clicks · $${Number(x.earnings).toFixed(6)}</div></div>`).join('')||'<div class="text-slate-500">No links yet.</div>';refLink.value=c.referral_url}catch(e){console.error(e)}}
-async function createLink(){created.innerHTML='';try{const d=await api('create_link',{original_url:longUrl.value});created.innerHTML=`<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3"><div class="text-sm">Short URL</div><div class="font-mono text-indigo-300 break-all">${esc(d.short_url)}</div></div>`;longUrl.value='';loadAll()}catch(e){created.innerHTML=`<div class="text-red-400">${esc(e.message)}</div>`}}
-async function rotateKey(){if(!confirm('Rotate your API key? The old key will stop working.'))return;try{const d=await api('rotate_api_key');alert('NEW API KEY — save it now:\n\n'+d.api_key);last4.textContent='••••••••'+d.api_key_last4}catch(e){alert(e.message)}}
-async function withdraw(){withdrawMsg.textContent='';try{const d=await api('withdraw',{amount:Number(amount.value),method:method.value,details:details.value,idempotency_key:crypto.randomUUID().replaceAll('-','').slice(0,32)});withdrawMsg.className='text-sm mt-2 text-emerald-400';withdrawMsg.textContent='Withdrawal submitted: '+d.withdrawal_id;location.reload()}catch(e){withdrawMsg.className='text-sm mt-2 text-red-400';withdrawMsg.textContent=e.message}}
-async function logout(){await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'logout'})});location.href='/'}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;',"\"":'&quot;'}[c]))}
-async function loadAds(){try{const r=await fetch('/api/ads',{credentials:'same-origin'}),d=await r.json();if(!r.ok)return;const a=d.ads||{};for(const [id,key] of [['ad-header','header'],['ad-left','left_sidebar'],['ad-right','right_sidebar'],['ad-bottom','bottom_banner']]){const el=document.getElementById(id);if(el&&a[key])el.innerHTML=a[key]}}catch{}}
-loadAds();loadSecurityConfig();init();
-</script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TeleShort - Premium Link Shortener & Publisher Dashboard</title>
+  <script>
+    window.addEventListener('error', function(e) {
+      if (e.message === 'Script error.' || !e.filename) { e.preventDefault(); return true; }
+    });
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: #111827;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: #f1f5f9;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass {
+      background: linear-gradient(180deg, rgba(22, 30, 49, 0.78) 0%, rgba(15, 23, 42, 0.88) 100%);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    }
+    .glass-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.75) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 0.875rem;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.25);
+    }
+    .btn-gradient {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #7c3aed 100%);
+      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.35);
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-gradient:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-gradient:active {
+      transform: translateY(0);
+      filter: brightness(0.95);
+    }
+    .btn-emerald {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-emerald:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-secondary:hover {
+      background: rgba(51, 65, 85, 0.9);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .ad-slot { display: flex; justify-content: center; align-items: center; overflow: hidden; }
+    .ad-slot:empty { display: none !important; }
+    input, textarea, select { outline: none; }
+    
+    /* Custom Modern Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(99, 102, 241, 0.6);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Global Header Ad Slot -->
+  <div id="ad-header" class="ad-slot w-full px-4 py-2 hidden"></div>
+
+  <!-- AUTH VIEW (Sign In / Register) -->
+  <div id="auth" class="min-h-screen flex flex-col justify-between p-4 sm:p-6 relative overflow-hidden">
+    <!-- Ambient glowing backgrounds -->
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="flex items-center justify-between max-w-md w-full mx-auto pt-2 relative z-10">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 text-lg font-black">⚡</div>
+        <span class="font-extrabold text-white text-lg tracking-tight">Tele<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Short</span></span>
+      </div>
+      <a href="/admin.html" class="text-xs text-slate-400 hover:text-slate-200 px-3.5 py-1.5 rounded-xl border border-slate-800/80 bg-slate-900/60 hover:bg-slate-800 hover:border-slate-700 transition flex items-center gap-1.5 shadow-sm">
+        <span>Admin Panel</span>
+        <span class="text-indigo-400">&rarr;</span>
+      </a>
+    </div>
+
+    <div class="flex items-center justify-center my-auto py-8 relative z-10">
+      <div class="glass p-7 sm:p-9 w-full max-w-md shadow-2xl border border-white/10">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/10 border border-indigo-500/30 text-indigo-400 text-2xl font-black mb-3.5 shadow-inner">⚡</div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">TeleShort Portal</h1>
+          <p class="text-xs text-slate-400 mt-1.5">Monetize short links, track real-time analytics & manage payouts</p>
+        </div>
+
+        <!-- Auth Tabs -->
+        <div class="flex p-1 bg-slate-950/80 rounded-xl border border-slate-800/80 mb-5">
+          <button type="button" id="tabLogin" onclick="setAuthMode('login')" class="flex-1 py-2.5 text-xs font-bold rounded-lg transition bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-600/20">
+            Sign In
+          </button>
+          <button type="button" id="tabRegister" onclick="setAuthMode('register')" class="flex-1 py-2.5 text-xs font-semibold rounded-lg transition text-slate-400 hover:text-white">
+            Create Account
+          </button>
+        </div>
+
+        <!-- Auth Form -->
+        <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+          <div>
+            <label for="email" class="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+            <div class="relative">
+              <input id="email" type="email" required placeholder="user@example.com" class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition">
+            </div>
+          </div>
+
+          <div>
+            <label for="password" class="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+            <div class="relative">
+              <input id="password" type="password" required minlength="8" placeholder="Minimum 8 characters" class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 transition">
+            </div>
+          </div>
+
+          <!-- Extra Registration Fields -->
+          <div id="registerFields" class="hidden space-y-3.5 pt-2 border-t border-slate-800/80">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="firstName" class="block text-xs font-medium text-slate-300 mb-1">First Name</label>
+                <input id="firstName" placeholder="John" class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500">
+              </div>
+              <div>
+                <label for="lastName" class="block text-xs font-medium text-slate-300 mb-1">Last Name</label>
+                <input id="lastName" placeholder="Doe" class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-3 py-2 text-sm text-slate-100 placeholder-slate-500">
+              </div>
+            </div>
+
+            <div>
+              <label for="username" class="block text-xs font-medium text-slate-300 mb-1">Username (Optional)</label>
+              <input id="username" placeholder="johndoe" class="w-full bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500">
+            </div>
+
+            <div id="turnstileWrap" class="hidden pt-1">
+              <div id="turnstileWidget" class="min-h-[65px] flex items-center justify-center"></div>
+            </div>
+          </div>
+
+          <button type="submit" id="authBtn" class="w-full btn-gradient text-white font-bold py-3 rounded-xl text-sm transition active:scale-[0.99] cursor-pointer mt-2">
+            Sign In
+          </button>
+
+          <div id="authError" role="alert" class="text-rose-400 text-xs text-center min-h-[16px]"></div>
+        </form>
+
+        <!-- Demo Account Quick Fill Helper -->
+        <div class="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <span>Demo credentials:</span>
+          <button type="button" onclick="fillDemoCredentials()" class="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline cursor-pointer flex items-center gap-1">
+            <span>demo@teleshort.test</span>
+            <span class="text-[10px] bg-indigo-950/80 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-800/60">Fill</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center text-xs text-slate-500 pb-2 relative z-10">
+      TeleShort &copy; 2026 &middot; High-Performance Short-Link Monetization Platform
+    </div>
+  </div>
+
+  <!-- APP VIEW (Sidebar Navigation + Dynamic Content) -->
+  <div id="app" class="hidden flex flex-col md:flex-row min-h-screen">
+    
+    <!-- Left Sidebar -->
+    <aside class="w-full md:w-64 shrink-0 bg-slate-950/95 border-r border-slate-800/80 p-4 sm:p-5 flex flex-col justify-between backdrop-blur-md">
+      <div>
+        <!-- App Brand -->
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800/80">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 text-base font-black">⚡</div>
+            <div>
+              <div class="font-extrabold text-base text-white tracking-tight">Tele<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Short</span></div>
+              <div id="userBadge" class="text-[11px] text-slate-400 font-mono truncate max-w-[140px]">user@domain</div>
+            </div>
+          </div>
+          <a href="/admin.html" title="Admin Panel" class="text-slate-400 hover:text-white p-2 rounded-xl border border-slate-800/80 bg-slate-900/60 hover:bg-slate-800 transition shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+          </a>
+        </div>
+
+        <!-- Balance Quick Card in Sidebar -->
+        <div class="glass-card p-3.5 mb-5 border border-emerald-500/20 bg-gradient-to-b from-slate-900/90 to-slate-950/90 shadow-md">
+          <div class="flex items-center justify-between">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Available Balance</div>
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          </div>
+          <div id="sideBalance" class="text-xl font-extrabold text-emerald-400 font-mono mt-1">$0.000000</div>
+          <button type="button" onclick="switchTab('withdrawals')" class="mt-2.5 w-full py-1.5 text-xs font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/50 rounded-lg transition active:scale-95 flex items-center justify-center gap-1">
+            <span>Request Payout</span>
+            <span class="text-emerald-400">&rarr;</span>
+          </button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="space-y-1.5">
+          <button data-tab="dashboard" onclick="switchTab('dashboard')" class="nav-btn w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3">
+            <span class="text-base">📊</span>
+            <span>Dashboard</span>
+          </button>
+
+          <button data-tab="links" onclick="switchTab('links')" class="nav-btn w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3">
+            <span class="text-base">🔗</span>
+            <span>Short Links</span>
+          </button>
+
+          <button data-tab="withdrawals" onclick="switchTab('withdrawals')" class="nav-btn w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3">
+            <span class="text-base">💳</span>
+            <span>Withdrawals</span>
+          </button>
+
+          <button data-tab="referrals" onclick="switchTab('referrals')" class="nav-btn w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3">
+            <span class="text-base">🤝</span>
+            <span>Referrals</span>
+          </button>
+
+          <button data-tab="api" onclick="switchTab('api')" class="nav-btn w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3">
+            <span class="text-base">🔑</span>
+            <span>Developer API</span>
+          </button>
+
+          <button data-tab="profile" onclick="switchTab('profile')" class="nav-btn w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-3">
+            <span class="text-base">👤</span>
+            <span>Profile</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Logout & User Info -->
+      <div class="pt-4 border-t border-slate-800/80 mt-6">
+        <button type="button" onclick="logoutUser()" class="w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition flex items-center gap-2.5 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main id="content" class="flex-1 p-4 sm:p-6 md:p-8 overflow-auto">
+      <div class="py-20 text-center text-slate-400">Loading portal&hellip;</div>
+    </main>
+
+  </div>
+
+  <!-- SLIDE-OVER STATS PANEL FOR SHORT LINKS -->
+  <div id="statsBackdrop" onclick="closeLinkStats()" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 transition-opacity duration-300 opacity-0 pointer-events-none" aria-hidden="true"></div>
+  
+  <aside id="statsSlideOver" role="dialog" aria-modal="true" aria-labelledby="statsSlideOverTitle" class="fixed inset-y-0 right-0 z-50 w-full max-w-lg sm:max-w-xl bg-slate-950/95 border-l border-slate-800/90 shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-in-out text-slate-100 backdrop-blur-xl">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-slate-800/90 flex items-center justify-between gap-3 bg-slate-950/90 backdrop-blur sticky top-0 z-20 shrink-0">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-[10px] uppercase tracking-wider font-extrabold text-indigo-400 bg-indigo-950/80 border border-indigo-700/60 px-2 py-0.5 rounded-md">Telemetry Insight</span>
+          <span id="statsShortId" class="font-mono text-sm font-bold text-white truncate">/s/…</span>
+        </div>
+        <div id="statsOriginalUrl" class="text-xs text-slate-400 truncate mt-1" title="">Loading link details…</div>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="statsCopyBtn" type="button" onclick="copyStatsLinkShortUrl()" title="Copy Short Link" class="inline-flex items-center gap-1 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700/60 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+          <span class="hidden sm:inline">Copy</span>
+        </button>
+        <a id="statsVisitLink" href="#" target="_blank" title="Open Link" class="inline-flex items-center gap-1 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 hover:bg-indigo-900/70 border border-indigo-800/60 px-3 py-1.5 rounded-lg transition">
+          <span class="hidden sm:inline">Visit</span>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        </a>
+        <button id="statsCloseBtn" type="button" onclick="closeLinkStats()" aria-label="Close panel" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-lg transition cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Panel Body -->
+    <div id="statsBody" class="flex-1 overflow-y-auto p-6 space-y-6">
+      <div class="py-24 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
+        <svg class="w-8 h-8 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+        <span>Loading stats & telemetry&hellip;</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Global Bottom Ad Slot -->
+  <div id="ad-bottom" class="ad-slot w-full px-4 py-2 hidden"></div>
+
+  <!-- Floating Toast Notification -->
+  <div id="toast" role="status" aria-live="polite" class="fixed bottom-6 right-6 z-50 transform transition-all duration-300 opacity-0 translate-y-3 pointer-events-none flex items-center gap-2.5 bg-slate-900/95 border border-indigo-500/40 text-slate-100 shadow-2xl px-4 py-2.5 rounded-xl text-sm font-medium backdrop-blur-lg">
+    <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+    <span id="toastMsg">Copied to clipboard!</span>
+  </div>
+
+  <script>
+    let authMode = 'login';
+    let currentUser = null;
+    let csrfToken = '';
+    let publicConfig = null;
+    let activeTabName = 'dashboard';
+    let cachedLinks = [];
+    let clickChartInstance = null;
+    let activeStatsLinkId = null;
+    let activeStatsShortId = null;
+    let statsGeoChartInstance = null;
+    let statsDeviceChartInstance = null;
+    let statsTimelineChartInstance = null;
+
+    const returnUrl = new URLSearchParams(location.search).get('return') || '';
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>'"]/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[c]));
+    }
+
+    let toastTimer = null;
+    function showToast(msg = 'Copied to clipboard!') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      if (!toast || !toastMsg) return;
+      toastMsg.textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-3', 'pointer-events-none');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-3', 'pointer-events-none');
+      }, 2000);
+    }
+
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch {}
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+
+    /* Auth handling */
+    function setAuthMode(mode) {
+      authMode = mode;
+      const regFields = document.getElementById('registerFields');
+      const authBtn = document.getElementById('authBtn');
+      const tabLogin = document.getElementById('tabLogin');
+      const tabRegister = document.getElementById('tabRegister');
+      const authError = document.getElementById('authError');
+
+      if (regFields) regFields.classList.toggle('hidden', mode !== 'register');
+      if (authError) authError.textContent = '';
+
+      if (mode === 'login') {
+        if (authBtn) authBtn.textContent = 'Sign In';
+        if (tabLogin) tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-indigo-600 text-white';
+        if (tabRegister) tabRegister.className = 'flex-1 py-2 text-xs font-medium rounded-lg transition text-slate-400 hover:text-white';
+      } else {
+        if (authBtn) authBtn.textContent = 'Create Account';
+        if (tabRegister) tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition bg-indigo-600 text-white';
+        if (tabLogin) tabLogin.className = 'flex-1 py-2 text-xs font-medium rounded-lg transition text-slate-400 hover:text-white';
+        setTimeout(renderTurnstile, 200);
+      }
+    }
+
+    function fillDemoCredentials() {
+      setAuthMode('login');
+      const emailEl = document.getElementById('email');
+      const passEl = document.getElementById('password');
+      if (emailEl) emailEl.value = 'demo@teleshort.test';
+      if (passEl) passEl.value = 'DemoPassword123!';
+      const err = document.getElementById('authError');
+      if (err) err.textContent = 'Demo credentials filled. Click Sign In to enter!';
+    }
+
+    let turnstileToken = '';
+    let turnstileWidgetId = null;
+
+    function renderTurnstile() {
+      const siteKey = publicConfig?.turnstile_site_key;
+      if (!siteKey || turnstileWidgetId !== null) return;
+      function doRender() {
+        if (!window.turnstile || turnstileWidgetId !== null) return;
+        window.turnstile.ready(() => {
+          if (turnstileWidgetId !== null) return;
+          try {
+            turnstileWidgetId = window.turnstile.render('#turnstileWidget', {
+              sitekey: siteKey,
+              theme: 'dark',
+              callback: t => turnstileToken = t,
+              'expired-callback': () => turnstileToken = '',
+              'error-callback': () => turnstileToken = ''
+            });
+            const w = document.getElementById('turnstileWrap');
+            if (w) w.classList.remove('hidden');
+          } catch (e) {
+            console.warn('Turnstile render warning:', e);
+          }
+        });
+      }
+      if (window.turnstile) {
+        doRender();
+      } else if (!document.getElementById('turnstile-script')) {
+        const s = document.createElement('script');
+        s.id = 'turnstile-script';
+        s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        s.async = true;
+        s.defer = true;
+        s.onload = doRender;
+        document.head.appendChild(s);
+      }
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const authError = document.getElementById('authError');
+      const authBtn = document.getElementById('authBtn');
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+
+      if (authError) authError.textContent = '';
+      if (authBtn) { authBtn.disabled = true; authBtn.textContent = 'Processing…'; }
+
+      try {
+        const body = { action: authMode, email: email.value, password: password.value };
+        if (authMode === 'register') {
+          const first = document.getElementById('firstName');
+          const last = document.getElementById('lastName');
+          const user = document.getElementById('username');
+          if (publicConfig?.turnstile_site_key && !turnstileToken) {
+            throw new Error('Please complete the anti-bot verification.');
+          }
+          Object.assign(body, {
+            first_name: first ? first.value.trim() : '',
+            last_name: last ? last.value.trim() : '',
+            username: user ? user.value.trim() : '',
+            ref: new URLSearchParams(location.search).get('ref') || '',
+            turnstile_token: turnstileToken || ''
+          });
+        }
+
+        const r = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(body)
+        });
+        const d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || 'Authentication failed');
+
+        csrfToken = d.csrf_token || '';
+        if (returnUrl) { location.href = returnUrl; return; }
+        showApp(d.user);
+      } catch (err) {
+        if (authError) authError.textContent = err.message;
+      } finally {
+        if (authBtn) {
+          authBtn.disabled = false;
+          authBtn.textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+        }
+      }
+    }
+
+    async function logoutUser() {
+      try {
+        await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ action: 'logout' })
+        });
+      } catch {}
+      location.href = '/';
+    }
+
+    /* API caller helper */
+    async function api(action, payload = {}) {
+      const h = { 'Content-Type': 'application/json' };
+      if (!['get_public_config', 'get_me', 'get_links', 'get_link_stats', 'get_withdrawals', 'get_referrals', 'get_click_history'].includes(action)) {
+        if (csrfToken) h['X-CSRF-Token'] = csrfToken;
+      }
+      const r = await fetch('/api/user', {
+        method: 'POST',
+        headers: h,
+        credentials: 'same-origin',
+        body: JSON.stringify({ action, payload })
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || 'Request failed');
+      return d;
+    }
+
+    /* App View Controller */
+    function showApp(user) {
+      currentUser = user;
+      document.getElementById('auth').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+
+      const badge = document.getElementById('userBadge');
+      if (badge) badge.textContent = user.username ? '@' + user.username : user.email;
+
+      const sideBal = document.getElementById('sideBalance');
+      if (sideBal) sideBal.textContent = '$' + Number(user.balance || 0).toFixed(6);
+
+      switchTab('dashboard');
+    }
+
+    function highlightNav(tab) {
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        const isMatch = btn.dataset.tab === tab;
+        btn.classList.toggle('bg-gradient-to-r', isMatch);
+        btn.classList.toggle('from-indigo-600', isMatch);
+        btn.classList.toggle('to-indigo-500', isMatch);
+        btn.classList.toggle('text-white', isMatch);
+        btn.classList.toggle('font-bold', isMatch);
+        btn.classList.toggle('shadow-lg', isMatch);
+        btn.classList.toggle('shadow-indigo-600/25', isMatch);
+        btn.classList.toggle('border', isMatch);
+        btn.classList.toggle('border-indigo-400/30', isMatch);
+        
+        btn.classList.toggle('text-slate-400', !isMatch);
+        btn.classList.toggle('hover:bg-slate-900/80', !isMatch);
+        btn.classList.toggle('hover:text-slate-200', !isMatch);
+        btn.classList.toggle('border-transparent', !isMatch);
+      });
+    }
+
+    async function refreshUserData() {
+      try {
+        const res = await api('get_me');
+        if (res.user) {
+          currentUser = res.user;
+          const sideBal = document.getElementById('sideBalance');
+          if (sideBal) sideBal.textContent = '$' + Number(currentUser.balance || 0).toFixed(6);
+          const badge = document.getElementById('userBadge');
+          if (badge) badge.textContent = currentUser.username ? '@' + currentUser.username : currentUser.email;
+        }
+      } catch (e) {
+        console.warn('refreshUserData error:', e);
+      }
+    }
+
+    async function switchTab(tabName) {
+      activeTabName = tabName;
+      highlightNav(tabName);
+      const content = document.getElementById('content');
+      if (!content) return;
+      content.innerHTML = `
+        <div class="py-24 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
+          <svg class="w-8 h-8 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+          <span class="font-medium">Loading content&hellip;</span>
+        </div>
+      `;
+
+      try {
+        if (tabName === 'dashboard') {
+          await renderDashboardTab(content);
+        } else if (tabName === 'links') {
+          await renderLinksTab(content);
+        } else if (tabName === 'withdrawals') {
+          await renderWithdrawalsTab(content);
+        } else if (tabName === 'referrals') {
+          await renderReferralsTab(content);
+        } else if (tabName === 'api') {
+          await renderApiTab(content);
+        } else if (tabName === 'profile') {
+          await renderProfileTab(content);
+        }
+      } catch (err) {
+        content.innerHTML = `<div class="glass p-6 text-rose-400 border border-rose-800/40">Error loading tab: ${esc(err.message)}</div>`;
+      }
+    }
+
+    /* 1. DASHBOARD TAB */
+    async function renderDashboardTab(container) {
+      await refreshUserData();
+      const u = currentUser;
+
+      container.innerHTML = `
+        <div class="space-y-7 max-w-6xl mx-auto">
+          
+          <!-- Top Welcome Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Publisher Dashboard</h2>
+                <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-semibold font-mono">v2.4 Live</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Welcome back, <span class="text-slate-200 font-bold">${esc(u.first_name || u.username || u.email)}</span> &middot; TeleShort Network</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="text-xs px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold flex items-center gap-2 shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Active CPM Stream</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 4 Main Stat Cards with elevated color scheme -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <!-- Available Balance -->
+            <div class="glass p-5 relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-300">
+              <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/15 transition"></div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Available Balance</span>
+                <span class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-sm font-bold">💳</span>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono mt-3 tracking-tight">$${Number(u.balance || 0).toFixed(6)}</div>
+              <div class="flex items-center justify-between text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-800/60">
+                <span>Ready for payout</span>
+                <button type="button" onclick="switchTab('withdrawals')" class="text-emerald-400 hover:text-emerald-300 font-semibold hover:underline">Withdraw &rarr;</button>
+              </div>
+            </div>
+
+            <!-- Total Earnings -->
+            <div class="glass p-5 relative overflow-hidden group hover:border-indigo-500/30 transition-all duration-300">
+              <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-indigo-500/15 transition"></div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Revenue</span>
+                <span class="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-sm font-bold">💰</span>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-indigo-400 font-mono mt-3 tracking-tight">$${Number(u.total_earnings || 0).toFixed(6)}</div>
+              <div class="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-800/60">
+                <span>All-time earnings</span>
+              </div>
+            </div>
+
+            <!-- Total Clicks -->
+            <div class="glass p-5 relative overflow-hidden group hover:border-cyan-500/30 transition-all duration-300">
+              <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-cyan-500/15 transition"></div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Clicks</span>
+                <span class="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-sm font-bold">🎯</span>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-cyan-400 font-mono mt-3 tracking-tight">${Number(u.total_clicks || 0)}</div>
+              <div class="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-800/60">
+                <span>Verified visits</span>
+              </div>
+            </div>
+
+            <!-- Today's Earnings -->
+            <div class="glass p-5 relative overflow-hidden group hover:border-teal-500/30 transition-all duration-300">
+              <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-teal-500/15 transition"></div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Earnings</span>
+                <span class="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-400 flex items-center justify-center text-sm font-bold">⚡</span>
+              </div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-teal-400 font-mono mt-3 tracking-tight">$${Number(u.today_earnings || 0).toFixed(6)}</div>
+              <div class="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-800/60">
+                <span>Current UTC 24h</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Link Shortening Tool with glowing gradient card -->
+          <div class="glass p-5 sm:p-7 relative overflow-hidden border border-indigo-500/30 shadow-xl">
+            <div class="flex items-center gap-2.5 mb-2">
+              <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-600/20 text-indigo-400 text-sm font-bold">🔗</span>
+              <h3 class="text-base font-bold text-white tracking-tight">Quick Shorten Link</h3>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">Transform any long web destination into a secure, monetized short link in seconds.</p>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="relative flex-1">
+                <input id="quickLongUrl" type="url" placeholder="https://example.com/very-long-url-to-monetize..." class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-3.5 text-sm text-slate-100 placeholder-slate-500 transition shadow-inner">
+              </div>
+              <button type="button" onclick="handleCreateLink('quickLongUrl', 'quickLinkResult')" class="btn-gradient text-white font-bold px-7 py-3.5 rounded-xl text-sm transition active:scale-95 cursor-pointer shrink-0 flex items-center justify-center gap-2">
+                <span>Shorten Link</span>
+                <span class="text-indigo-200">&rarr;</span>
+              </button>
+            </div>
+            <div id="quickLinkResult" class="mt-4 empty:mt-0"></div>
+          </div>
+
+          <!-- 7-Day Click History Chart -->
+          <div class="glass p-5 sm:p-7">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div>
+                <h3 class="font-extrabold text-white text-base sm:text-lg flex items-center gap-2 tracking-tight">
+                  <span class="text-indigo-400">📈</span>
+                  <span>7-Day Traffic Trends</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Verified anti-bot visits and visitor clicks across all links</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="dashTotalClicks" class="text-xs px-3.5 py-1.5 bg-indigo-950/80 border border-indigo-700/60 text-indigo-300 rounded-xl font-bold font-mono">0 clicks in 7 days</span>
+              </div>
+            </div>
+            <div class="relative w-full h-64">
+              <canvas id="trafficChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Recent Links Preview -->
+          <div class="glass p-5 sm:p-7">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h3 class="font-extrabold text-white text-base sm:text-lg tracking-tight">Recent Short Links</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Your 5 most recently created links</p>
+              </div>
+              <button type="button" onclick="switchTab('links')" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold hover:underline flex items-center gap-1">
+                <span>View All Links</span>
+                <span>&rarr;</span>
+              </button>
+            </div>
+            <div id="recentLinksList" class="space-y-3">
+              <div class="text-xs text-slate-400 py-6 text-center">Loading links…</div>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      // Load Chart and Recent Links
+      setTimeout(async () => {
+        await initTrafficChart('trafficChart', 'dashTotalClicks');
+        await loadRecentLinks('recentLinksList');
+      }, 50);
+    }
+
+    async function loadRecentLinks(containerId) {
+      try {
+        const res = await api('get_links');
+        cachedLinks = res.links || [];
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const slice = cachedLinks.slice(0, 5);
+        if (slice.length === 0) {
+          container.innerHTML = '<div class="text-xs text-slate-400 py-6 text-center border border-dashed border-slate-800/80 rounded-2xl bg-slate-950/40">No short links created yet. Use the shortener above!</div>';
+          return;
+        }
+
+        container.innerHTML = slice.map(l => `
+          <div class="glass-card hover:border-indigo-500/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 transition duration-200">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <span class="font-mono text-xs text-indigo-300 font-bold bg-indigo-950/80 border border-indigo-700/60 px-2.5 py-0.5 rounded-lg">/s/${esc(l.short_id)}</span>
+                <span class="text-xs font-bold text-emerald-400 font-mono">$${Number(l.earnings).toFixed(6)}</span>
+                <span class="text-[11px] text-slate-400 font-medium">${l.clicks} visit${l.clicks === 1 ? '' : 's'}</span>
+              </div>
+              <div class="text-xs text-slate-400 truncate mt-1.5 font-mono text-[11px]" title="${esc(l.original_url)}">${esc(l.original_url)}</div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+              <button id="recentStatsBtn-${esc(l.id)}" type="button" onclick="openLinkStats('${esc(l.id)}')" class="inline-flex items-center gap-1.5 text-xs bg-indigo-950/80 hover:bg-indigo-900 text-indigo-200 hover:text-white px-3 py-1.5 rounded-lg border border-indigo-700/60 transition active:scale-95 cursor-pointer font-bold shadow-sm">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span>Stats</span>
+              </button>
+              <button type="button" onclick="copyShortLink('${esc(l.short_id)}', this)" class="btn-secondary text-xs px-3 py-1.5 rounded-lg transition active:scale-95 cursor-pointer font-semibold">
+                Copy
+              </button>
+              <a href="/s/${esc(l.short_id)}" target="_blank" class="inline-flex items-center gap-1 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-800/60 px-3 py-1.5 rounded-lg transition font-semibold">
+                <span>Visit</span>
+                <span class="text-xs">&rarr;</span>
+              </a>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.warn('loadRecentLinks error:', e);
+      }
+    }
+
+    /* 2. LINKS TAB */
+    async function renderLinksTab(container) {
+      container.innerHTML = `
+        <div class="space-y-7 max-w-6xl mx-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+            <div>
+              <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Short Links</h2>
+              <p class="text-xs text-slate-400 mt-1">Create, manage, and monitor link performance & telemetry</p>
+            </div>
+          </div>
+
+          <!-- Create Link Card -->
+          <div class="glass p-5 sm:p-7 border border-indigo-500/30">
+            <h3 class="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <span class="text-indigo-400 font-bold">🔗</span>
+              <span>Create New Short Link</span>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Shorten any destination URL with multi-step anti-bot protected visits</p>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input id="linksLongUrl" type="url" placeholder="https://example.com/long-url-to-shorten..." class="flex-1 bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-3.5 text-sm text-slate-100 placeholder-slate-500 shadow-inner">
+              <button type="button" onclick="handleCreateLink('linksLongUrl', 'linksResult')" class="btn-gradient text-white font-bold px-7 py-3.5 rounded-xl text-sm transition active:scale-95 cursor-pointer shrink-0">
+                Shorten Link
+              </button>
+            </div>
+            <div id="linksResult" class="mt-4 empty:mt-0"></div>
+          </div>
+
+          <!-- Links Filter & List -->
+          <div class="glass p-5 sm:p-7">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+              <div>
+                <h3 class="font-extrabold text-white text-base sm:text-lg tracking-tight">All Short Links</h3>
+                <p id="linksCountBadge" class="text-xs text-slate-400 mt-0.5">Loading links…</p>
+              </div>
+              <div class="w-full sm:w-80">
+                <input id="linkSearchInput" type="text" oninput="filterAllLinks()" placeholder="Search by URL or /s/ ID..." class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 transition">
+              </div>
+            </div>
+
+            <div id="fullLinksList" class="space-y-3">
+              <div class="py-12 text-center text-slate-400 text-xs">Loading links…</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      try {
+        const res = await api('get_links');
+        cachedLinks = res.links || [];
+        filterAllLinks();
+      } catch (err) {
+        document.getElementById('fullLinksList').innerHTML = `<div class="text-xs text-rose-400 py-4">${esc(err.message)}</div>`;
+      }
+    }
+
+    function filterAllLinks() {
+      const q = (document.getElementById('linkSearchInput')?.value || '').trim().toLowerCase();
+      const listEl = document.getElementById('fullLinksList');
+      const countEl = document.getElementById('linksCountBadge');
+      if (!listEl) return;
+
+      const filtered = cachedLinks.filter(l => {
+        if (!q) return true;
+        return String(l.short_id || '').toLowerCase().includes(q) || String(l.original_url || '').toLowerCase().includes(q);
+      });
+
+      if (countEl) countEl.textContent = `${filtered.length} link${filtered.length === 1 ? '' : 's'} active`;
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = cachedLinks.length > 0 ? 
+          '<div class="text-slate-400 text-xs py-10 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">No links match your search query.</div>' :
+          '<div class="text-slate-400 text-xs py-10 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">No short links created yet. Create your first link above!</div>';
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(l => `
+        <div class="glass-card hover:border-indigo-500/40 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition duration-200">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2.5 flex-wrap">
+              <span class="font-mono text-xs text-indigo-300 font-bold bg-indigo-950/80 border border-indigo-700/60 px-2.5 py-0.5 rounded-lg">/s/${esc(l.short_id)}</span>
+              <span class="text-xs font-bold text-emerald-400 font-mono bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-md">$${Number(l.earnings).toFixed(6)}</span>
+              <span class="text-[11px] text-slate-300 font-medium">${l.clicks} visit${l.clicks === 1 ? '' : 's'}</span>
+              <span class="text-[11px] text-slate-500 font-mono">${esc(l.created_at || '')}</span>
+            </div>
+            <div class="text-xs text-slate-400 truncate mt-2 font-mono text-[11px]" title="${esc(l.original_url)}">${esc(l.original_url)}</div>
+          </div>
+          <div class="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
+            <button id="viewStatsBtn-${esc(l.id)}" type="button" onclick="openLinkStats('${esc(l.id)}')" class="inline-flex items-center gap-1.5 text-xs bg-indigo-950/80 hover:bg-indigo-900 text-indigo-200 hover:text-white px-3.5 py-2 rounded-xl border border-indigo-700/60 transition active:scale-95 cursor-pointer font-bold shadow-sm">
+              <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+              <span>View Stats</span>
+            </button>
+            <button id="copyShortBtn-${esc(l.id)}" type="button" onclick="copyShortLink('${esc(l.short_id)}', this)" class="btn-secondary text-xs px-3.5 py-2 rounded-xl transition active:scale-95 cursor-pointer font-semibold flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+              <span>Copy</span>
+            </button>
+            <a id="visitShortBtn-${esc(l.id)}" href="/s/${esc(l.short_id)}" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-white bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-800/60 px-3.5 py-2 rounded-xl transition font-semibold">
+              <span>Visit</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+            </a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function handleCreateLink(inputId, resultId) {
+      const input = document.getElementById(inputId);
+      const result = document.getElementById(resultId);
+      if (!input || !result) return;
+      result.innerHTML = '';
+      const val = input.value.trim();
+      if (!val) {
+        result.innerHTML = '<div class="text-xs text-rose-400 p-3 rounded-xl bg-rose-950/40 border border-rose-800/50">Please enter a valid URL.</div>';
+        return;
+      }
+
+      try {
+        const d = await api('create_link', { original_url: val });
+        result.innerHTML = `
+          <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-emerald-950/40">
+            <div class="min-w-0">
+              <div class="text-xs text-emerald-400 font-bold flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <span>Short Link Generated Successfully</span>
+              </div>
+              <div class="font-mono text-indigo-300 text-sm sm:text-base font-bold mt-1.5 break-all select-all">${esc(d.short_url)}</div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" onclick="copyText('${esc(d.short_url)}').then(()=>showToast('Link copied!'))" class="btn-emerald text-white font-bold text-xs px-4 py-2 rounded-xl transition active:scale-95 cursor-pointer">
+                Copy Link
+              </button>
+              <a href="${esc(d.short_url)}" target="_blank" class="btn-secondary text-xs px-3.5 py-2 rounded-xl transition font-semibold">
+                Open &rarr;
+              </a>
+            </div>
+          </div>
+        `;
+        input.value = '';
+        const res = await api('get_links');
+        cachedLinks = res.links || [];
+        if (activeTabName === 'links') filterAllLinks();
+        if (activeTabName === 'dashboard') loadRecentLinks('recentLinksList');
+      } catch (err) {
+        result.innerHTML = `<div class="text-xs text-rose-400 p-3 rounded-xl bg-rose-950/40 border border-rose-800/50">${esc(err.message)}</div>`;
+      }
+    }
+
+    async function copyShortLink(shortId, btn) {
+      const url = location.origin + '/s/' + shortId;
+      const ok = await copyText(url);
+      if (ok) {
+        showToast('Link copied to clipboard!');
+        if (btn) {
+          const orig = btn.innerHTML;
+          btn.innerHTML = '<span class="text-emerald-400 font-bold">Copied!</span>';
+          setTimeout(() => { if (btn) btn.innerHTML = orig; }, 1800);
+        }
+      }
+    }
+
+    /* 3. WITHDRAWALS TAB */
+    async function renderWithdrawalsTab(container) {
+      await refreshUserData();
+      const minWithdraw = Number(publicConfig?.min_withdraw || 5.0).toFixed(2);
+      const paymentMethods = (publicConfig?.payment_methods || 'FaucetPay, Binance Pay').split(',').map(s => s.trim()).filter(Boolean);
+
+      container.innerHTML = `
+        <div class="space-y-7 max-w-5xl mx-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+              <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Withdraw Earnings</h2>
+              <p class="text-xs text-slate-400 mt-1">Direct payout to your cryptocurrency or fiat wallet</p>
+            </div>
+            <div class="glass px-4 py-2.5 flex items-center gap-3 border border-emerald-500/30">
+              <span class="text-xs text-slate-400 font-medium">Available:</span>
+              <span class="font-mono text-lg font-black text-emerald-400">$${Number(currentUser.balance || 0).toFixed(6)}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Request Form (5 cols) -->
+            <div class="lg:col-span-5 glass p-6 sm:p-7">
+              <h3 class="text-base font-bold text-white mb-1 flex items-center gap-2">
+                <span>💳</span>
+                <span>Request Payout</span>
+              </h3>
+              <p class="text-xs text-slate-400 mb-4">Minimum payout is <span class="text-slate-200 font-bold">$${minWithdraw} USD</span>.</p>
+
+              <form onsubmit="handleWithdrawSubmit(event)" class="space-y-4">
+                <div>
+                  <label for="wAmount" class="block text-xs font-medium text-slate-300 mb-1.5">Amount ($ USD)</label>
+                  <input id="wAmount" type="number" step="0.000001" min="${minWithdraw}" required placeholder="e.g. ${minWithdraw}" class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 font-mono">
+                </div>
+
+                <div>
+                  <label for="wMethod" class="block text-xs font-medium text-slate-300 mb-1.5">Payment Method</label>
+                  <select id="wMethod" class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100">
+                    ${paymentMethods.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+                  </select>
+                </div>
+
+                <div>
+                  <label for="wDetails" class="block text-xs font-medium text-slate-300 mb-1.5">Payment Address / Account ID</label>
+                  <textarea id="wDetails" rows="2" required placeholder="Paste your wallet address, email or account ID" class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 font-mono text-xs"></textarea>
+                </div>
+
+                <button type="submit" id="wBtn" class="w-full btn-gradient text-white font-bold py-3 rounded-xl text-sm transition active:scale-95 cursor-pointer mt-2">
+                  Submit Withdrawal Request
+                </button>
+
+                <div id="wError" role="alert" class="text-xs min-h-[16px]"></div>
+              </form>
+            </div>
+
+            <!-- History Table (7 cols) -->
+            <div class="lg:col-span-7 glass p-6 sm:p-7 overflow-hidden">
+              <h3 class="text-base font-bold text-white mb-1">Payout History</h3>
+              <p class="text-xs text-slate-400 mb-4">Status and timestamps of previous requests</p>
+
+              <div id="wHistory" class="overflow-x-auto">
+                <div class="py-10 text-center text-slate-400 text-xs">Loading withdrawals…</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      try {
+        const res = await api('get_withdrawals');
+        const list = res.withdrawals || [];
+        const histEl = document.getElementById('wHistory');
+        if (!histEl) return;
+
+        if (list.length === 0) {
+          histEl.innerHTML = '<div class="text-xs text-slate-400 py-10 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">No withdrawal requests yet.</div>';
+          return;
+        }
+
+        histEl.innerHTML = `
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-3">Amount</th>
+                <th class="p-3">Method</th>
+                <th class="p-3">Status</th>
+                <th class="p-3">Date</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              ${list.map(w => {
+                const badge = w.status === 'paid' ? '<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold font-mono">PAID</span>' :
+                              w.status === 'rejected' ? '<span class="px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold font-mono">REJECTED</span>' :
+                              '<span class="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold font-mono">PENDING</span>';
+                return `
+                  <tr class="hover:bg-slate-950/50 transition">
+                    <td class="p-3 font-mono font-bold text-emerald-400">$${Number(w.amount).toFixed(6)}</td>
+                    <td class="p-3 text-slate-300 font-medium">${esc(w.method)}</td>
+                    <td class="p-3">${badge}</td>
+                    <td class="p-3 text-slate-500 font-mono">${esc(w.created_at || '')}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (err) {
+        document.getElementById('wHistory').innerHTML = `<div class="text-xs text-rose-400 py-4">${esc(err.message)}</div>`;
+      }
+    }
+
+    async function handleWithdrawSubmit(e) {
+      e.preventDefault();
+      const amount = document.getElementById('wAmount');
+      const method = document.getElementById('wMethod');
+      const details = document.getElementById('wDetails');
+      const errEl = document.getElementById('wError');
+      const btn = document.getElementById('wBtn');
+
+      if (errEl) errEl.textContent = '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+      try {
+        const d = await api('withdraw', {
+          amount: Number(amount.value),
+          method: method.value,
+          details: details.value.trim(),
+          idempotency_key: crypto.randomUUID().replaceAll('-', '').slice(0, 32)
+        });
+        showToast('Withdrawal submitted!');
+        await switchTab('withdrawals');
+      } catch (err) {
+        if (errEl) {
+          errEl.className = 'text-xs text-red-400 mt-2 p-2 rounded-lg bg-red-950/40 border border-red-800/50';
+          errEl.textContent = err.message;
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit Withdrawal Request'; }
+      }
+    }
+
+    /* 4. REFERRALS TAB */
+    async function renderReferralsTab(container) {
+      container.innerHTML = `
+        <div class="space-y-7 max-w-5xl mx-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+              <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Referral Program</h2>
+              <p class="text-xs text-slate-400 mt-1">Invite publishers and earn passive commission on every verified visit</p>
+            </div>
+            <span class="text-xs px-3.5 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 font-bold flex items-center gap-1.5">
+              <span>💎</span>
+              <span>10% Lifetime Commission</span>
+            </span>
+          </div>
+
+          <div class="glass p-5 sm:p-7 border border-indigo-500/30">
+            <h3 class="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <span class="text-indigo-400 font-bold">🤝</span>
+              <span>Your Unique Referral Link</span>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Share this link with other publishers. When anyone signs up using it, you earn 10% of their link revenue automatically forever.</p>
+            
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input id="myRefUrl" readonly class="flex-1 bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-3 text-xs sm:text-sm font-mono text-indigo-300 select-all shadow-inner">
+              <button type="button" onclick="copyRefLink()" class="btn-gradient text-white font-bold px-6 py-3 rounded-xl text-xs sm:text-sm transition active:scale-95 cursor-pointer shrink-0 flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                <span>Copy Referral Link</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Referrals Table -->
+          <div class="glass p-5 sm:p-7">
+            <h3 class="text-base font-bold text-white mb-1">Referred Publishers</h3>
+            <p class="text-xs text-slate-400 mb-4">Users who registered through your personal invitation</p>
+
+            <div id="referralListWrap">
+              <div class="py-10 text-center text-slate-400 text-xs">Loading referrals…</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      try {
+        const res = await api('get_referrals');
+        const refUrl = document.getElementById('myRefUrl');
+        if (refUrl) refUrl.value = res.referral_url;
+
+        const list = res.referrals || [];
+        const wrap = document.getElementById('referralListWrap');
+        if (!wrap) return;
+
+        if (list.length === 0) {
+          wrap.innerHTML = '<div class="text-xs text-slate-400 py-10 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">No referrals yet. Share your link to start earning passive income!</div>';
+          return;
+        }
+
+        wrap.innerHTML = `
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="p-3">Publisher ID</th>
+                  <th class="p-3">Joined Date</th>
+                  <th class="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/60">
+                ${list.map(r => `
+                  <tr class="hover:bg-slate-950/50 transition">
+                    <td class="p-3 font-mono text-indigo-300 font-bold">${esc(r.referred_user_id.slice(0, 16))}&hellip;</td>
+                    <td class="p-3 text-slate-400 font-mono">${esc(r.created_at)}</td>
+                    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold font-mono">${esc(r.status || 'active')}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById('referralListWrap').innerHTML = `<div class="text-xs text-rose-400 py-4">${esc(err.message)}</div>`;
+      }
+    }
+
+    async function copyRefLink() {
+      const el = document.getElementById('myRefUrl');
+      if (!el || !el.value) return;
+      const ok = await copyText(el.value);
+      if (ok) showToast('Referral link copied!');
+    }
+
+    /* 5. DEVELOPER API TAB */
+    async function renderApiTab(container) {
+      await refreshUserData();
+      const last4 = currentUser.api_key_last4 || '••••';
+
+      container.innerHTML = `
+        <div class="space-y-7 max-w-5xl mx-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+              <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Developer API</h2>
+              <p class="text-xs text-slate-400 mt-1">Programmatically shorten links using your secret API key</p>
+            </div>
+          </div>
+
+          <!-- API Key Box -->
+          <div class="glass p-5 sm:p-7 border border-indigo-500/30">
+            <h3 class="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <span class="text-indigo-400 font-bold">🔑</span>
+              <span>Your Secret API Key</span>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Keys are securely hashed and salted in the database. Pass your key in the HTTP Authorization header.</p>
+
+            <div class="p-4 rounded-2xl bg-slate-950/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Active Secret Key</div>
+                <div class="font-mono text-sm text-indigo-300 font-bold mt-1 tracking-wider">••••••••••••••••••••••••••••${esc(last4)}</div>
+              </div>
+              <button type="button" onclick="handleRotateKey()" class="text-xs font-bold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 px-4 py-2.5 rounded-xl transition active:scale-95 cursor-pointer shrink-0">
+                Rotate Secret Key
+              </button>
+            </div>
+
+            <div id="newKeyAlert" class="mt-4 empty:mt-0"></div>
+          </div>
+
+          <!-- Documentation & Examples -->
+          <div class="glass p-5 sm:p-7 space-y-5">
+            <div>
+              <h3 class="text-base font-bold text-white mb-1">API Endpoint Specification</h3>
+              <p class="text-xs text-slate-400">Endpoint: <code class="bg-slate-950 px-2.5 py-1 rounded-lg text-indigo-300 font-mono font-bold">GET /api/shorten</code> or <code class="bg-slate-950 px-2.5 py-1 rounded-lg text-indigo-300 font-mono font-bold">POST /api/shorten</code></p>
+            </div>
+
+            <div>
+              <div class="text-xs text-slate-300 font-bold mb-2 flex items-center gap-2">
+                <span>cURL Example</span>
+              </div>
+              <pre class="bg-slate-950/90 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed">curl -G "${location.origin}/api/shorten" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  --data-urlencode "url=https://example.com/target-page"</pre>
+            </div>
+
+            <div>
+              <div class="text-xs text-slate-300 font-bold mb-2 flex items-center gap-2">
+                <span>JavaScript / Fetch Example</span>
+              </div>
+              <pre class="bg-slate-950/90 p-4 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed">const res = await fetch('${location.origin}/api/shorten?url=' + encodeURIComponent('https://example.com'), {
+  headers: {
+    'Authorization': 'Bearer YOUR_API_KEY'
+  }
+});
+const data = await res.json();
+console.log(data.short_url);</pre>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleRotateKey() {
+      if (!confirm('Rotate your API key? The old key will stop working immediately.')) return;
+      const alertEl = document.getElementById('newKeyAlert');
+      if (!alertEl) return;
+      alertEl.innerHTML = '';
+
+      try {
+        const d = await api('rotate_api_key');
+        alertEl.innerHTML = `
+          <div class="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+            <div class="text-xs text-amber-300 font-bold flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>NEW API KEY GENERATED — SAVE IT NOW:</span>
+            </div>
+            <div class="font-mono text-xs text-slate-100 bg-slate-950 p-3 rounded-xl border border-slate-800 mt-2.5 select-all break-all font-bold">${esc(d.api_key)}</div>
+            <div class="text-[11px] text-slate-400 mt-2">This plaintext key is shown only once. Please update your external scripts immediately.</div>
+          </div>
+        `;
+        await refreshUserData();
+      } catch (err) {
+        alertEl.innerHTML = `<div class="text-xs text-rose-400 p-3 rounded-xl bg-rose-950/40 border border-rose-800/50">${esc(err.message)}</div>`;
+      }
+    }
+
+    /* 6. PROFILE TAB */
+    async function renderProfileTab(container) {
+      await refreshUserData();
+      const u = currentUser;
+
+      container.innerHTML = `
+        <div class="space-y-7 max-w-3xl mx-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+            <div>
+              <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Account Profile</h2>
+              <p class="text-xs text-slate-400 mt-1">Manage your personal details and account information</p>
+            </div>
+          </div>
+
+          <div class="glass p-6 sm:p-8">
+            <form onsubmit="handleProfileUpdate(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+                <input value="${esc(u.email)}" disabled class="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed font-mono">
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label for="profFirst" class="block text-xs font-medium text-slate-300 mb-1.5">First Name</label>
+                  <input id="profFirst" value="${esc(u.first_name || '')}" class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100">
+                </div>
+                <div>
+                  <label for="profLast" class="block text-xs font-medium text-slate-300 mb-1.5">Last Name</label>
+                  <input id="profLast" value="${esc(u.last_name || '')}" class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100">
+                </div>
+              </div>
+
+              <div>
+                <label for="profUser" class="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
+                <input id="profUser" value="${esc(u.username || '')}" class="w-full bg-slate-950/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono">
+              </div>
+
+              <div class="pt-3">
+                <button type="submit" id="profBtn" class="btn-gradient text-white font-bold px-7 py-3 rounded-xl text-sm transition active:scale-95 cursor-pointer">
+                  Save Changes
+                </button>
+              </div>
+
+              <div id="profMsg" class="text-xs min-h-[16px]"></div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleProfileUpdate(e) {
+      e.preventDefault();
+      const first = document.getElementById('profFirst')?.value || '';
+      const last = document.getElementById('profLast')?.value || '';
+      const user = document.getElementById('profUser')?.value || '';
+      const msg = document.getElementById('profMsg');
+      const btn = document.getElementById('profBtn');
+
+      if (msg) msg.textContent = '';
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+      try {
+        await api('update_profile', { first_name: first, last_name: last, username: user });
+        if (msg) {
+          msg.className = 'text-xs text-emerald-400 mt-2 p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50';
+          msg.textContent = 'Profile updated successfully!';
+        }
+        await refreshUserData();
+      } catch (err) {
+        if (msg) {
+          msg.className = 'text-xs text-rose-400 mt-2 p-3 rounded-xl bg-rose-950/40 border border-rose-800/50';
+          msg.textContent = err.message;
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      }
+    }
+
+    /* Chart rendering */
+    async function initTrafficChart(canvasId, totalClicksBadgeId) {
+      try {
+        const res = await api('get_click_history');
+        const history = res.history || [];
+
+        const labels = history.map(item => {
+          try {
+            const parts = item.date.split('-');
+            if (parts.length === 3) {
+              const d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+              return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+            }
+          } catch {}
+          return item.date;
+        });
+
+        const clickData = history.map(item => item.clicks);
+        const total7Days = clickData.reduce((a, b) => a + b, 0);
+
+        const totalBadge = document.getElementById(totalClicksBadgeId);
+        if (totalBadge) totalBadge.textContent = `${total7Days} click${total7Days === 1 ? '' : 's'} in 7 days`;
+
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !window.Chart) return;
+
+        if (clickChartInstance) {
+          clickChartInstance.destroy();
+          clickChartInstance = null;
+        }
+
+        const ctx = canvas.getContext('2d');
+        let gradient = null;
+        try {
+          gradient = ctx.createLinearGradient(0, 0, 0, 220);
+          gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+          gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+        } catch {}
+
+        clickChartInstance = new window.Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Clicks',
+              data: clickData,
+              borderColor: '#6366f1',
+              borderWidth: 2.5,
+              backgroundColor: gradient || 'rgba(99, 102, 241, 0.1)',
+              fill: true,
+              tension: 0.3,
+              pointBackgroundColor: '#818cf8',
+              pointBorderColor: '#0f172a',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f172a',
+                titleColor: '#e2e8f0',
+                bodyColor: '#cbd5e1',
+                borderColor: '#334155',
+                borderWidth: 1,
+                padding: 8,
+                cornerRadius: 8,
+                callbacks: {
+                  label: c => `${c.parsed.y} click${c.parsed.y === 1 ? '' : 's'}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(255, 255, 255, 0.04)', tickColor: 'transparent' },
+                ticks: { color: '#94a3b8', font: { size: 11, family: 'Inter, system-ui' } }
+              },
+              y: {
+                beginAtZero: true,
+                suggestedMax: 4,
+                ticks: { stepSize: 1, precision: 0, color: '#94a3b8', font: { size: 11, family: 'Inter, system-ui' } },
+                grid: { color: 'rgba(255, 255, 255, 0.06)' }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('initTrafficChart error:', err);
+      }
+    }
+
+    /* Slide-over Stats & Analytics for Individual Short Links */
+    const COUNTRY_NAMES = {
+      US: 'United States', GB: 'United Kingdom', CA: 'Canada', DE: 'Germany',
+      FR: 'France', IN: 'India', BD: 'Bangladesh', PK: 'Pakistan',
+      NG: 'Nigeria', BR: 'Brazil', ID: 'Indonesia', PH: 'Philippines',
+      AU: 'Australia', ES: 'Spain', IT: 'Italy', NL: 'Netherlands',
+      RU: 'Russia', TR: 'Turkey', VN: 'Vietnam', JP: 'Japan',
+      MX: 'Mexico', EG: 'Egypt', SA: 'Saudi Arabia', AE: 'United Arab Emirates',
+      ZA: 'South Africa', PL: 'Poland', SE: 'Sweden', SG: 'Singapore'
+    };
+
+    function getCountryName(code) {
+      if (!code || code === 'Unknown') return 'Unknown Region';
+      const c = String(code).toUpperCase();
+      return COUNTRY_NAMES[c] || c;
+    }
+
+    function getCountryFlag(code) {
+      if (!code || code === 'Unknown' || code.length !== 2) return '🌐';
+      try {
+        const offset = 127397;
+        const chars = [...code.toUpperCase()].map(c => c.charCodeAt(0) + offset);
+        return String.fromCodePoint(...chars);
+      } catch {
+        return '🌐';
+      }
+    }
+
+    function getDeviceIcon(device) {
+      const d = String(device || '').toLowerCase();
+      if (d.includes('mobile')) return '📱';
+      if (d.includes('tablet')) return '📟';
+      return '💻';
+    }
+
+    function handleStatsKeyDown(e) {
+      if (e.key === 'Escape') {
+        closeLinkStats();
+      }
+    }
+
+    function copyStatsLinkShortUrl() {
+      if (!activeStatsShortId) return;
+      const fullUrl = new URL(`/s/${activeStatsShortId}`, location.origin).href;
+      copyTextToClipboard(fullUrl);
+      showToast(`Copied /s/${activeStatsShortId} to clipboard!`);
+    }
+
+    function closeLinkStats() {
+      const drawer = document.getElementById('statsSlideOver');
+      const backdrop = document.getElementById('statsBackdrop');
+      if (drawer) drawer.classList.add('translate-x-full');
+      if (backdrop) {
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+        backdrop.classList.remove('opacity-100');
+      }
+      window.removeEventListener('keydown', handleStatsKeyDown);
+
+      // Cleanup charts
+      if (statsGeoChartInstance) {
+        statsGeoChartInstance.destroy();
+        statsGeoChartInstance = null;
+      }
+      if (statsDeviceChartInstance) {
+        statsDeviceChartInstance.destroy();
+        statsDeviceChartInstance = null;
+      }
+      if (statsTimelineChartInstance) {
+        statsTimelineChartInstance.destroy();
+        statsTimelineChartInstance = null;
+      }
+      activeStatsLinkId = null;
+      activeStatsShortId = null;
+    }
+
+    async function openLinkStats(linkId) {
+      activeStatsLinkId = linkId;
+      const drawer = document.getElementById('statsSlideOver');
+      const backdrop = document.getElementById('statsBackdrop');
+      const body = document.getElementById('statsBody');
+      const shortIdEl = document.getElementById('statsShortId');
+      const origUrlEl = document.getElementById('statsOriginalUrl');
+      const visitLinkEl = document.getElementById('statsVisitLink');
+
+      // Open drawer visually
+      if (backdrop) {
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        backdrop.classList.add('opacity-100');
+      }
+      if (drawer) {
+        drawer.classList.remove('translate-x-full');
+      }
+      window.addEventListener('keydown', handleStatsKeyDown);
+
+      if (body) {
+        body.innerHTML = `
+          <div class="py-24 text-center text-slate-400 text-xs flex flex-col items-center gap-3">
+            <svg class="w-8 h-8 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            <span>Fetching real-time link analytics&hellip;</span>
+          </div>
+        `;
+      }
+
+      try {
+        const res = await api('get_link_stats', { link_id: linkId });
+        if (!res.success || !res.link) throw new Error('Could not retrieve statistics.');
+
+        activeStatsShortId = res.link.short_id;
+        if (shortIdEl) shortIdEl.textContent = `/s/${res.link.short_id}`;
+        if (origUrlEl) {
+          origUrlEl.textContent = res.link.original_url;
+          origUrlEl.title = res.link.original_url;
+        }
+        if (visitLinkEl) {
+          visitLinkEl.href = `/s/${res.link.short_id}`;
+        }
+
+        renderStatsSlideOverContent(res);
+      } catch (err) {
+        if (body) {
+          body.innerHTML = `
+            <div class="p-6 text-center text-xs text-rose-400 bg-rose-950/30 border border-rose-800/50 rounded-2xl">
+              <svg class="w-8 h-8 mx-auto mb-2 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              <p class="font-semibold">${esc(err.message || 'Failed to load link statistics')}</p>
+              <button type="button" onclick="openLinkStats('${esc(linkId)}')" class="mt-3 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition border border-slate-700">Retry</button>
+            </div>
+          `;
+        }
+      }
+    }
+
+    function renderStatsSlideOverContent(data) {
+      const body = document.getElementById('statsBody');
+      if (!body) return;
+
+      const link = data.link;
+      const geo = data.geo || [];
+      const devices = data.devices || [];
+      const timeline = data.timeline || [];
+      const recentClicks = data.recent_clicks || [];
+      const totalClicks = Number(link.clicks || 0);
+      const totalEarnings = Number(link.earnings || 0);
+
+      // Summary Header Cards
+      let html = `
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+            <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Clicks</span>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span class="text-2xl font-black text-white font-mono">${totalClicks}</span>
+              <span class="text-[10px] text-indigo-400 font-semibold bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-800/50">Verified</span>
+            </div>
+          </div>
+          <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+            <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Earnings</span>
+            <div class="text-2xl font-black text-emerald-400 font-mono mt-1">$${totalEarnings.toFixed(6)}</div>
+          </div>
+          <div class="col-span-2 sm:col-span-1 bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 flex flex-col justify-between">
+            <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Created Date</span>
+            <div class="text-xs font-semibold text-slate-300 truncate mt-1.5" title="${esc(link.created_at)}">${esc(link.created_at || 'Just now')}</div>
+          </div>
+        </div>
+      `;
+
+      if (totalClicks === 0) {
+        html += `
+          <!-- Empty State -->
+          <div class="bg-slate-950/60 border border-dashed border-slate-800 rounded-2xl p-6 text-center space-y-3">
+            <div class="w-12 h-12 mx-auto rounded-2xl bg-indigo-950/60 border border-indigo-800/50 flex items-center justify-center text-xl">
+              📊
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-slate-200">No Clicks Logged Yet</h4>
+              <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                Share this link with your audience to start recording anti-bot verified visits, geographical locations, and device types.
+              </p>
+            </div>
+            <div class="pt-2">
+              <button type="button" onclick="copyStatsLinkShortUrl()" class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition active:scale-95 cursor-pointer shadow-lg shadow-indigo-600/20">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                <span>Copy Shareable Link</span>
+              </button>
+            </div>
+          </div>
+        `;
+        body.innerHTML = html;
+        return;
+      }
+
+      // 1. GEOGRAPHICAL DISTRIBUTION SECTION
+      const totalGeoClicks = geo.reduce((acc, g) => acc + Number(g.clicks || 0), 0) || totalClicks;
+      html += `
+        <!-- Geographical Distribution Section -->
+        <div class="glass p-5 rounded-2xl border border-slate-800/90 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+            <div>
+              <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <span class="text-base">🌍</span>
+                <span>Geographical Distribution</span>
+              </h4>
+              <p class="text-[11px] text-slate-400 mt-0.5">Click volume by visitor origin country</p>
+            </div>
+            <span class="text-xs font-mono font-semibold text-indigo-400 bg-indigo-950/70 border border-indigo-800/50 px-2 py-0.5 rounded">
+              ${geo.length} ${geo.length === 1 ? 'country' : 'countries'}
+            </span>
+          </div>
+
+          <!-- Geo Chart Container -->
+          <div class="relative w-full h-44 flex items-center justify-center">
+            <canvas id="statsGeoChartCanvas"></canvas>
+          </div>
+
+          <!-- Country List Breakdown -->
+          <div class="space-y-2 pt-1 max-h-56 overflow-y-auto pr-1">
+            ${geo.map(g => {
+              const cName = getCountryName(g.country);
+              const flag = getCountryFlag(g.country);
+              const count = Number(g.clicks || 0);
+              const pct = totalGeoClicks > 0 ? ((count / totalGeoClicks) * 100).toFixed(1) : '0.0';
+              return `
+                <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-2.5 flex flex-col gap-1.5">
+                  <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2 font-medium text-slate-200">
+                      <span class="text-base">${flag}</span>
+                      <span class="truncate max-w-[180px] sm:max-w-[220px]">${esc(cName)}</span>
+                      <span class="text-[10px] text-slate-500 font-mono">(${esc(g.country)})</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="font-bold text-white font-mono">${count} ${count === 1 ? 'click' : 'clicks'}</span>
+                      <span class="text-[11px] font-semibold text-indigo-400 bg-indigo-950/80 border border-indigo-800/50 px-1.5 py-0.2 rounded font-mono">${pct}%</span>
+                    </div>
+                  </div>
+                  <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800/80">
+                    <div class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%;"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+
+      // 2. DEVICE DISTRIBUTION SECTION
+      const totalDevClicks = devices.reduce((acc, d) => acc + Number(d.clicks || 0), 0) || totalClicks;
+      html += `
+        <!-- Device Distribution Section -->
+        <div class="glass p-5 rounded-2xl border border-slate-800/90 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+            <div>
+              <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <span class="text-base">📱</span>
+                <span>Device-Type Distribution</span>
+              </h4>
+              <p class="text-[11px] text-slate-400 mt-0.5">Visitor platform and hardware segmentation</p>
+            </div>
+            <span class="text-xs font-mono font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-800/50 px-2 py-0.5 rounded">
+              Platforms
+            </span>
+          </div>
+
+          <!-- Device Chart & Cards Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div class="relative w-full h-40 flex items-center justify-center">
+              <canvas id="statsDeviceChartCanvas"></canvas>
+            </div>
+            <div class="space-y-2">
+              ${devices.map(d => {
+                const count = Number(d.clicks || 0);
+                const pct = totalDevClicks > 0 ? ((count / totalDevClicks) * 100).toFixed(1) : '0.0';
+                const icon = getDeviceIcon(d.device);
+                return `
+                  <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2 font-medium text-slate-200">
+                      <span class="text-base">${icon}</span>
+                      <span>${esc(d.device)}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-white font-mono">${count}</span>
+                      <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 border border-emerald-800/50 px-1.5 py-0.2 rounded font-mono">${pct}%</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 3. 7-DAY PERFORMANCE TIMELINE
+      html += `
+        <!-- 7-Day Performance Timeline -->
+        <div class="glass p-5 rounded-2xl border border-slate-800/90 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+            <div>
+              <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <span class="text-base">📈</span>
+                <span>Recent Traffic Trend</span>
+              </h4>
+              <p class="text-[11px] text-slate-400 mt-0.5">Daily click volume over the last 7 days</p>
+            </div>
+          </div>
+          <div class="relative w-full h-36">
+            <canvas id="statsTimelineChartCanvas"></canvas>
+          </div>
+        </div>
+      `;
+
+      // 4. RECENT CLICKS LOG
+      if (recentClicks.length > 0) {
+        html += `
+          <!-- Recent Clicks Activity Table -->
+          <div class="glass p-5 rounded-2xl border border-slate-800/90 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <span class="text-base">⚡</span>
+                <span>Recent Completed Clicks</span>
+              </h4>
+              <span class="text-[11px] text-slate-400">Last ${recentClicks.length}</span>
+            </div>
+            <div class="space-y-1.5 max-h-48 overflow-y-auto">
+              ${recentClicks.map(c => `
+                <div class="bg-slate-950/60 border border-slate-800/70 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-sm shrink-0">${getCountryFlag(c.country_code)}</span>
+                    <span class="font-medium text-slate-300 truncate">${esc(getCountryName(c.country_code))}</span>
+                    <span class="text-[11px] text-slate-500 font-mono">(${esc(c.device_type)})</span>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span class="text-[11px] text-emerald-400 font-mono font-medium">+$${Number(c.reward || 0).toFixed(6)}</span>
+                    <span class="text-[10px] text-slate-500">${esc(c.created_at ? c.created_at.slice(5, 16) : '')}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      body.innerHTML = html;
+
+      // Render Charts after DOM injection
+      setTimeout(() => {
+        renderStatsCharts(geo, devices, timeline);
+      }, 50);
+    }
+
+    function renderStatsCharts(geo, devices, timeline) {
+      if (!window.Chart) return;
+
+      const palette = [
+        '#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#8b5cf6',
+        '#ec4899', '#3b82f6', '#14b8a6', '#f97316', '#64748b'
+      ];
+
+      // 1. Geo Chart (Doughnut)
+      const geoCanvas = document.getElementById('statsGeoChartCanvas');
+      if (geoCanvas && geo.length > 0) {
+        if (statsGeoChartInstance) {
+          statsGeoChartInstance.destroy();
+          statsGeoChartInstance = null;
+        }
+        const ctx = geoCanvas.getContext('2d');
+        statsGeoChartInstance = new window.Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: geo.map(g => `${getCountryFlag(g.country)} ${getCountryName(g.country)} (${g.country})`),
+            datasets: [{
+              data: geo.map(g => Number(g.clicks || 0)),
+              backgroundColor: palette.slice(0, geo.length),
+              borderColor: '#0f172a',
+              borderWidth: 2,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f172a',
+                titleColor: '#e2e8f0',
+                bodyColor: '#cbd5e1',
+                borderColor: '#334155',
+                borderWidth: 1,
+                padding: 8,
+                cornerRadius: 8,
+                callbacks: {
+                  label: c => ` ${c.label}: ${c.parsed} click${c.parsed === 1 ? '' : 's'}`
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Device Chart (Doughnut)
+      const devCanvas = document.getElementById('statsDeviceChartCanvas');
+      if (devCanvas && devices.length > 0) {
+        if (statsDeviceChartInstance) {
+          statsDeviceChartInstance.destroy();
+          statsDeviceChartInstance = null;
+        }
+        const devColors = {
+          'Mobile': '#10b981',
+          'Desktop': '#6366f1',
+          'Tablet': '#f59e0b'
+        };
+        const ctx = devCanvas.getContext('2d');
+        statsDeviceChartInstance = new window.Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: devices.map(d => `${getDeviceIcon(d.device)} ${d.device}`),
+            datasets: [{
+              data: devices.map(d => Number(d.clicks || 0)),
+              backgroundColor: devices.map(d => devColors[d.device] || '#06b6d4'),
+              borderColor: '#0f172a',
+              borderWidth: 2,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f172a',
+                titleColor: '#e2e8f0',
+                bodyColor: '#cbd5e1',
+                borderColor: '#334155',
+                borderWidth: 1,
+                padding: 8,
+                cornerRadius: 8,
+                callbacks: {
+                  label: c => ` ${c.label}: ${c.parsed} click${c.parsed === 1 ? '' : 's'}`
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // 3. Timeline Chart (Bar/Line)
+      const timeCanvas = document.getElementById('statsTimelineChartCanvas');
+      if (timeCanvas && timeline.length > 0) {
+        if (statsTimelineChartInstance) {
+          statsTimelineChartInstance.destroy();
+          statsTimelineChartInstance = null;
+        }
+        const labels = timeline.map(item => {
+          try {
+            const parts = item.date.split('-');
+            if (parts.length === 3) {
+              const d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+              return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+            }
+          } catch {}
+          return item.date;
+        });
+
+        const ctx = timeCanvas.getContext('2d');
+        statsTimelineChartInstance = new window.Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Clicks',
+              data: timeline.map(t => Number(t.clicks || 0)),
+              backgroundColor: 'rgba(99, 102, 241, 0.75)',
+              hoverBackgroundColor: '#6366f1',
+              borderRadius: 6,
+              borderSkipped: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f172a',
+                titleColor: '#e2e8f0',
+                bodyColor: '#cbd5e1',
+                borderColor: '#334155',
+                borderWidth: 1,
+                padding: 8,
+                cornerRadius: 8,
+                callbacks: {
+                  label: c => `${c.parsed.y} click${c.parsed.y === 1 ? '' : 's'}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { color: '#94a3b8', font: { size: 10, family: 'Inter, system-ui' } }
+              },
+              y: {
+                beginAtZero: true,
+                suggestedMax: 3,
+                ticks: { stepSize: 1, precision: 0, color: '#94a3b8', font: { size: 10, family: 'Inter, system-ui' } },
+                grid: { color: 'rgba(255, 255, 255, 0.05)' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    /* Load banner ads */
+    async function loadBannerAds() {
+      try {
+        const r = await fetch('/api/ads', { credentials: 'same-origin' });
+        const d = await r.json();
+        if (!r.ok) return;
+        const a = d.ads || {};
+        for (const [id, key] of [['ad-header', 'header'], ['ad-bottom', 'bottom_banner']]) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          if (a[key] && a[key].trim()) {
+            el.innerHTML = a[key];
+            el.classList.remove('hidden');
+          } else {
+            el.innerHTML = '';
+            el.classList.add('hidden');
+          }
+        }
+      } catch (e) {
+        console.warn('loadBannerAds error:', e);
+      }
+    }
+
+    /* Init Application */
+    async function initialize() {
+      try {
+        // Load public security config
+        const confRes = await fetch('/api/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ action: 'get_public_config' })
+        });
+        const confData = await confRes.json();
+        if (confData?.settings) publicConfig = confData.settings;
+
+        // Check active session
+        const authRes = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ action: 'me' })
+        });
+        const authData = await authRes.json();
+        if (authRes.ok && authData.user) {
+          csrfToken = authData.csrf_token || '';
+          showApp(authData.user);
+        }
+      } catch (err) {
+        console.warn('Init error:', err);
+      }
+      loadBannerAds();
+    }
+
+    initialize();
+  </script>
+</body>
+</html>

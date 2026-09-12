@@ -30,6 +30,60 @@ if(action==='create_link'){const rl=await rateLimit(env,`create_link:user:${user
 
 if(action==='get_links'){const{results}=await env.DB.prepare('SELECT id,original_url,short_id,clicks,earnings_micros,created_at FROM links WHERE user_id=? ORDER BY created_at DESC LIMIT 100').bind(user.id).all();return json({links:(results||[]).map(l=>({...l,earnings:Number(l.earnings_micros)/MICRO}))});}
 
+if(action==='get_link_stats'){
+  const linkId=String(payload.link_id||'').trim();
+  if(!linkId)return safeError('Link ID is required.');
+  const link=await env.DB.prepare('SELECT id,original_url,short_id,clicks,earnings_micros,created_at FROM links WHERE id=? AND user_id=?').bind(linkId,user.id).first();
+  if(!link)return safeError('Link not found.',404);
+
+  const geoQuery="SELECT COALESCE(NULLIF(country_code, ''), 'Unknown') as country, COUNT(*) as clicks FROM click_logs WHERE link_id=? GROUP BY country ORDER BY clicks DESC LIMIT 15";
+  const {results: geoResults}=await env.DB.prepare(geoQuery).bind(linkId).all();
+
+  const devQuery="SELECT COALESCE(NULLIF(device_type, ''), 'Desktop') as device, COUNT(*) as clicks FROM click_logs WHERE link_id=? GROUP BY device ORDER BY clicks DESC";
+  const {results: devResults}=await env.DB.prepare(devQuery).bind(linkId).all();
+
+  const totalLogs=await env.DB.prepare("SELECT COUNT(*) as count, COALESCE(SUM(rewarded_micros),0) as earnings FROM click_logs WHERE link_id=?").bind(linkId).first();
+
+  const days=[];
+  const now=new Date();
+  for(let i=6;i>=0;i--){
+    const d=new Date(now.getTime()-i*86400000);
+    days.push(d.toISOString().slice(0,10));
+  }
+  const minDate=days[0];
+  const {results: dailyResults}=await env.DB.prepare("SELECT date(created_at) as click_date, COUNT(*) as clicks FROM click_logs WHERE link_id=? AND date(created_at)>=? GROUP BY date(created_at) ORDER BY click_date ASC").bind(linkId,minDate).all();
+  const dailyMap=new Map((dailyResults||[]).map(r=>[r.click_date,Number(r.clicks)||0]));
+  const timeline=days.map(dt=>({date:dt,clicks:dailyMap.get(dt)||0}));
+
+  const {results: recentClicks}=await env.DB.prepare("SELECT created_at, COALESCE(NULLIF(country_code, ''), 'Unknown') as country_code, COALESCE(NULLIF(device_type, ''), 'Desktop') as device_type, rewarded_micros FROM click_logs WHERE link_id=? ORDER BY created_at DESC LIMIT 10").bind(linkId).all();
+
+  const totalClicksCount=Math.max(Number(link.clicks)||0, Number(totalLogs?.count)||0);
+  const totalEarningsAmt=Math.max(Number(link.earnings_micros)||0, Number(totalLogs?.earnings)||0)/MICRO;
+
+  return json({
+    success: true,
+    link: {
+      id: link.id,
+      short_id: link.short_id,
+      original_url: link.original_url,
+      clicks: totalClicksCount,
+      earnings: totalEarningsAmt,
+      created_at: link.created_at
+    },
+    geo: geoResults||[],
+    devices: devResults||[],
+    timeline,
+    recent_clicks: (recentClicks||[]).map(c=>({
+      created_at: c.created_at,
+      country_code: c.country_code,
+      device_type: c.device_type,
+      reward: Number(c.rewarded_micros||0)/MICRO
+    }))
+  });
+}
+
+if(action==='get_click_history'){const days=[];const now=new Date();for(let i=6;i>=0;i--){const d=new Date(now.getTime()-i*86400000);days.push(d.toISOString().slice(0,10));}const minDate=days[0];const linkId=payload.link_id?String(payload.link_id).trim():'';let query="SELECT date(created_at) as click_date, COUNT(*) as clicks, COALESCE(SUM(rewarded_micros),0) as earnings_micros FROM click_logs WHERE creator_user_id=? AND date(created_at)>=?";const params=[user.id,minDate];if(linkId){query+=" AND link_id=?";params.push(linkId);}query+=" GROUP BY date(created_at) ORDER BY click_date ASC";const{results}=await env.DB.prepare(query).bind(...params).all();const map=new Map((results||[]).map(r=>[r.click_date,{clicks:Number(r.clicks)||0,earnings:Number(r.earnings_micros)/MICRO}]));const history=days.map(dt=>{const d=map.get(dt)||{clicks:0,earnings:0};return{date:dt,clicks:d.clicks,earnings:d.earnings};});return json({success:true,history});}
+
 if(action==='withdraw'){const rl=await rateLimit(env,`withdraw:user:${user.id}`,5,3600);if(!rl.allowed)return json({error:'Too many withdrawal requests. Try again later.',retry_after:rl.retryAfter},429,rateHeaders(rl));const ipRl=await rateLimit(env,`withdraw:ip:${await sha256Hex(getClientIp(request))}`,20,3600);if(!ipRl.allowed)return json({error:'Too many withdrawal requests from this network.',retry_after:ipRl.retryAfter},429,rateHeaders(ipRl));const method=String(payload.method||'').trim(),details=String(payload.details||'').trim(),amount=Number(payload.amount),idem=String(payload.idempotency_key||'').trim();const settings=await loadSettings(env);const minW=Number(settings?.min_withdraw_micros||5*MICRO);const allowed=String(settings?.payment_methods||'').split(',').map(x=>x.trim()).filter(Boolean);const amountMicros=Math.round(amount*MICRO);if(!Number.isFinite(amount)||amountMicros<=0||amountMicros<minW)return safeError(`Minimum withdrawal amount is $${(minW/MICRO).toFixed(2)}`);if(!allowed.includes(method))return safeError('Unsupported payment method.');if(!details||details.length>512)return safeError('Invalid payout details.');if(!/^[A-Za-z0-9._:-]{16,80}$/.test(idem))return safeError('A valid idempotency key is required.');const existing=await env.DB.prepare('SELECT id,status FROM withdrawals WHERE idempotency_key=? AND user_id=?').bind(idem,user.id).first();if(existing)return json({success:true,duplicate:true,withdrawal_id:existing.id,status:existing.status});const wid=crypto.randomUUID();const result=await env.DB.batch([env.DB.prepare('UPDATE users SET balance_micros=balance_micros-?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND is_blocked=0 AND balance_micros>=?').bind(amountMicros,user.id,amountMicros),env.DB.prepare('INSERT INTO withdrawals(id,user_id,username,amount_micros,method,details,idempotency_key) VALUES(?,?,?,?,?,?,?)').bind(wid,user.id,user.username||user.email,amountMicros,method,details,idem),env.DB.prepare("INSERT INTO earnings_ledger(id,user_id,type,amount_micros,reference_id,metadata) VALUES(?,?,?,?,?,?)").bind(crypto.randomUUID(),user.id,'withdrawal_reserve',-amountMicros,wid,JSON.stringify({method}))]);if(!result[0]?.meta?.changes)return safeError('Insufficient balance or transaction failed.');return json({success:true,new_balance:(Number(user.balance_micros)-amountMicros)/MICRO,withdrawal_id:wid});}
 
 if(action==='get_withdrawals'){const{results}=await env.DB.prepare('SELECT id,amount_micros,method,details,status,provider_reference,created_at,processed_at FROM withdrawals WHERE user_id=? ORDER BY created_at DESC LIMIT 50').bind(user.id).all();return json({withdrawals:(results||[]).map(w=>({...w,amount:Number(w.amount_micros)/MICRO}))});}

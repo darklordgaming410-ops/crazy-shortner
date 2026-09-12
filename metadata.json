@@ -1,0 +1,6 @@
+{
+  "name": "TeleShort",
+  "description": "Production-hardened web short-link platform with user accounts, configurable multi-step visits, rewards, referrals, withdrawals, and developer API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

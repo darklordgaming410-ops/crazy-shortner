@@ -3,7 +3,7 @@ export function getCookie(request,name){const raw=request.headers.get('Cookie')|
 export function getClientIp(request){return request.headers.get('CF-Connecting-IP')||request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim()||'0.0.0.0'}
 export async function sha256Hex(value){const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(value)));return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 export function randomHex(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));return [...a].map(b=>b.toString(16).padStart(2,'0')).join('')}
-export function cookie(name,value,maxAge,path='/'){return `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=${path}; HttpOnly; Secure; SameSite=Strict`}
+export function cookie(name,value,maxAge,path='/'){return `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=${path}; HttpOnly; Secure; SameSite=None; Partitioned`}
 export function clearCookie(name,path='/'){return cookie(name,'',0,path)}
 export function sameOrigin(request){const origin=request.headers.get('Origin');if(!origin)return true;try{return new URL(origin).origin===new URL(request.url).origin}catch{return false}}
 export async function passwordHash(password,saltHex=randomHex(16)){const salt=new Uint8Array(saltHex.match(/.{1,2}/g).map(x=>parseInt(x,16)));const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:120000,hash:'SHA-256'},key,256);return `pbkdf2$120000$${saltHex}$${[...new Uint8Array(bits)].map(b=>b.toString(16).padStart(2,'0')).join('')}`}

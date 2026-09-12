@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS click_logs (
     user_agent_hash TEXT,
     risk_score INTEGER NOT NULL DEFAULT 0,
     rewarded_micros INTEGER NOT NULL DEFAULT 0,
+    country_code TEXT DEFAULT 'Unknown',
+    device_type TEXT DEFAULT 'Desktop',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_click_logs_link_user_time ON click_logs(link_id, clicker_user_id, created_at DESC);
