@@ -1,0 +1,4 @@
+function json(data,status=200,headers={}){return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'public, max-age=60, s-maxage=60',...headers}})}
+function parse(raw){try{const x=JSON.parse(raw||'{}');return{header:String(x.header||''),left_sidebar:String(x.left_sidebar||''),right_sidebar:String(x.right_sidebar||''),bottom_banner:String(x.bottom_banner||'')}}catch{return{header:'',left_sidebar:'',right_sidebar:'',bottom_banner:''}}}
+export async function onRequestGet({env}){try{const s=await env.DB.prepare("SELECT banner_ads FROM settings WHERE id='default'").first();return json({ads:parse(s?.banner_ads)})}catch(e){console.error('ADS_API_ERROR',e);return json({error:'Unable to load ads.'},500)}}
+export async function onRequestOptions(){return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,OPTIONS'}})}
